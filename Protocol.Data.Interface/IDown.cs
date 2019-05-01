@@ -16,7 +16,10 @@ namespace Protocol.Data.Interface
 
         String BuildQuery(string sid, IList<EDownParamGY> cmds, EChannelType ctype);
 
-
+        /// <summary>
+        /// 批量查询flash下行指令
+        /// </summary>
+        String BuildQuery_Flash(string sid, EStationType stationType, ETrans trans, DateTime beginTime, DateTime endTime, EChannelType ctype);
 
         /// <summary>
         /// 设置命令

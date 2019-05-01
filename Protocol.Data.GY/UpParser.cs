@@ -369,6 +369,11 @@ namespace Protocol.Data.GY
                     version = data.Substring(3, Convert.ToInt32(length, 16));//获取版本信息
                     downData.Version = version;
                 }
+                if (reportType.Equals("51"))
+                {
+                    DateTime machineTime = sendTime;
+                    downData.Time = machineTime;
+                }
                 //查询遥测站状态及报警信息
                 else if (reportType.Equals("46"))
                 {
@@ -520,7 +525,7 @@ namespace Protocol.Data.GY
 
                 #region 处理上行报文
                 if (reportType.Equals("30") || reportType.Equals("31") ||  reportType.Equals("32") 
-                    || reportType.Equals("33") || reportType.Equals("34"))
+                    || reportType.Equals("33") || reportType.Equals("34") || reportType.Equals("38"))
                 {
                     string stationTypeString = data.Substring(0, 1);
                     if (stationTypeString == "H")

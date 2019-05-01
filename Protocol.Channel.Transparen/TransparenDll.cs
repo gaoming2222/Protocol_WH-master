@@ -261,6 +261,7 @@ namespace Protocol.Channel.Transparen
         /// </summary>
         public bool DSStopService()  // 关闭接收器（要求在断开全部连接后才能停止）
         {
+            InvokeMessage("关闭接收器start", "TCP");
             onlineTimer.Stop();
             // 先设置该值, 否则在循环 AccecptClientConnect 时可能出错
             _stopReceiver = true;
@@ -293,7 +294,9 @@ namespace Protocol.Channel.Transparen
                             session.Clear();
                             session.ClientSocket.Close();
                         }
-                        catch { }
+                        catch {
+                            InvokeMessage("关闭接收器error","TCP");
+                        }
                     }
                 }
             }
@@ -313,6 +316,7 @@ namespace Protocol.Channel.Transparen
                     }
                     catch(Exception e)
                     {
+                        InvokeMessage("关闭接收器error", "TCP");
                         relievePort(TcpSocketPort);
                         this.OnReceiverException();
                     }
@@ -326,7 +330,11 @@ namespace Protocol.Channel.Transparen
                     _sessionTable.Clear();
                 }
             }
+            
             isStart = false;
+            CloseAllSession();
+            relievePort(TcpSocketPort);
+            InvokeMessage("关闭接收器end", "TCP");
             return true;
         }
 
@@ -337,8 +345,8 @@ namespace Protocol.Channel.Transparen
         {
             try
             {
-                
 
+                InvokeMessage("开启接收器end", "TCP");
                 _stopReceiver = true;
 
                 this.DSStopService();
@@ -385,11 +393,13 @@ namespace Protocol.Channel.Transparen
                 isStart = true;
                 TcpSocketPort = port;
                 _stopConnectRequest = false;  // 启动接收器，则自动允许连接
+                InvokeMessage("开启接收器end", "TCP");
             }
             catch
             {
                 this.OnReceiverException();
                 _stopReceiver = true;
+                InvokeMessage("关闭接收器error", "TCP");
             }
 
             return !_stopReceiver;
@@ -401,6 +411,7 @@ namespace Protocol.Channel.Transparen
         /// </summary>
         public void CloseAllSession()
         {
+            InvokeMessage("关闭所有接收器start", "TCP");
             lock (_sessionTable)
             {
                 foreach (TSession session in _sessionTable.Values)
@@ -417,6 +428,7 @@ namespace Protocol.Channel.Transparen
                     }
                 }
             }
+            InvokeMessage("关闭所有接收器end", "TCP");
         }
 
         /// <summary>
@@ -456,6 +468,7 @@ namespace Protocol.Channel.Transparen
         /// <param name="sessionID"></param>
         public bool SendDownData(uint sessionID, string datagram)
         {
+            InvokeMessage("发送下行指令start", "TCP");
             bool sendSuccess = false;
 
             TSession session = null;
@@ -525,11 +538,12 @@ namespace Protocol.Channel.Transparen
                         session.State = TSessionState.NoReply;
 
                         this.OnClientException();
+                        InvokeMessage("发送下行指令erroe", "TCP");
                     }
                 }
                 InvokeMessage(datagram, "发送");
             }
-
+            InvokeMessage("发送下行指令end", "TCP");
             return sendSuccess;
         }
 
@@ -541,6 +555,7 @@ namespace Protocol.Channel.Transparen
         /// <returns></returns>
         public bool SendData(uint sessionID, string datagram)
         {
+            InvokeMessage("回复上行接收确认标志start", "TCP");
             bool sendSuccess = false;
 
             TSession session = null;
@@ -557,7 +572,7 @@ namespace Protocol.Channel.Transparen
             }
             catch (Exception e)
             {
-
+                InvokeMessage("回复上行接收确认标志error", "TCP");
             }
 
             if (_sessionTable.ContainsKey(sessionID))
@@ -613,13 +628,13 @@ namespace Protocol.Channel.Transparen
 
                         // 写 socket 发生错误，则准备关闭该会话，系统不认为是错误
                         session.State = TSessionState.NoReply;
-
+                        InvokeMessage("回复上行接收确认标志error", "TCP");
                         this.OnClientException();
                     }
                 }
                 InvokeMessage(datagram, "发送");
             }
-
+            InvokeMessage("回复上行接收确认标志end", "TCP");
             return sendSuccess;
         }
 
@@ -694,19 +709,23 @@ namespace Protocol.Channel.Transparen
         /// </summary>
         private bool CreateReceiverSocket(ushort port)
         {
+            InvokeMessage("创建接收服务器的 Socket, 并侦听客户端连接请求start", "TCP");
             try
             {
                 _receiverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 _receiverSocket.Bind(new IPEndPoint(IPAddress.Any, port));  // 绑定端口
                 this._tcpSocketPort = port;
                 _receiverSocket.Listen(_maxAllowListenQueueLength);  // 开始监听
+                InvokeMessage("创建接收服务器的 Socket, 并侦听客户端连接请求end", "TCP");
                 return true;
             }
             catch
             {
+                InvokeMessage("创建接收服务器的 Socket, 并侦听客户端连接请求error", "TCP");
                 this.OnReceiverException();
                 return false;
             }
+            
         }
         /// <summary>
         /// 清理数据库资源
@@ -760,7 +779,7 @@ namespace Protocol.Channel.Transparen
         private void initStations()
         {
             m_listStations = m_proxyStation.QueryAll();
-            m_listSoillStations = m_proxySoliStation.QueryAllSoilStation();
+            //m_listSoillStations = m_proxySoliStation.QueryAllSoilStation();
             //水雨情、墒情中gprs号码 gsm号码 北斗号码都是不重复的
             //1.初始化水情信息对应
             for (int i = 0; i < m_listStations.Count; i++)
@@ -773,14 +792,14 @@ namespace Protocol.Channel.Transparen
                 m_listTransparents.Add(transparent);
             }
             //2.初始化墒情信息对应
-            for (int i = 0; i < m_listSoillStations.Count; i++)
-            {
-                TransparentHelper transparent = new TransparentHelper();
-                transparent.gprsId = m_listSoillStations[i].GPRS;
-                transparent.gsmNum = m_listSoillStations[i].GSM;
-                transparent.beidouNum = m_listSoillStations[i].BDSatellite;
-                m_listTransparents.Add(transparent);
-            }
+            //for (int i = 0; i < m_listSoillStations.Count; i++)
+            //{
+            //    TransparentHelper transparent = new TransparentHelper();
+            //    transparent.gprsId = m_listSoillStations[i].GPRS;
+            //    transparent.gsmNum = m_listSoillStations[i].GSM;
+            //    transparent.beidouNum = m_listSoillStations[i].BDSatellite;
+            //    m_listTransparents.Add(transparent);
+            //}
         }
         /// <summary>
         /// 判断重复IP地址
@@ -813,6 +832,7 @@ namespace Protocol.Channel.Transparen
         /// </summary>
         public void ListenClientRequest(object state)
         {
+            InvokeMessage("ListenClientRequest start", "TCP");
             Socket client = null;
             while (!_stopReceiver)
             {
@@ -826,6 +846,7 @@ namespace Protocol.Channel.Transparen
                         }
                         catch
                         {
+                            InvokeMessage("ListenClientRequest error", "TCP");
                             this.OnReceiverException();
                         }
                         finally
@@ -939,8 +960,10 @@ namespace Protocol.Channel.Transparen
                         catch { }
                     }
                 }
+                //TODO
                 // 该处可以适当暂停若干毫秒
             }
+            InvokeMessage("ListenClientRequest end", "TCP");
             // 该处可以适当暂停若干毫秒
         }
 
@@ -976,7 +999,7 @@ namespace Protocol.Channel.Transparen
 
         private void EndReceiveData(IAsyncResult iar)  // iar 目标客户端 Session
         {
-
+            InvokeMessage("EndReceiveData start", "TCP");
             TSession session = (TSession)iar.AsyncState;
             lock (_sessionTable)
             {
@@ -1027,6 +1050,7 @@ namespace Protocol.Channel.Transparen
                     //session.State = TSessionState.NoReply;
                 }
             }
+            InvokeMessage("EndReceiveData end", "TCP");
         }
         private void ResolveBuffer_1(TSession session, int receivedSize)
         {
@@ -1095,144 +1119,279 @@ namespace Protocol.Channel.Transparen
         /// </summary>
         private void ResolveBuffer(TSession session, int receivedSize)
         {
-            string data = string.Empty;
-            int sessionId = session.ID;
-            string ip = session.IP;
-            DateTime loginTime = session.LoginTime;
-            DateTime refreshTime = session.LastDataReceivedTime;
-            byte[] ReceiveBuffer = session.ReceiveBuffer;
-            byte[] dataByteList = new byte[receivedSize];
-            for (int i = 0; i < receivedSize; i++)
-            {
-                dataByteList[i] = ReceiveBuffer[i];
-                if (i == 2048)
+            try {
+                InvokeMessage("ResolveBuffer start", "TCP");
+                string data = string.Empty;
+                int sessionId = session.ID;
+                string ip = session.IP;
+                DateTime loginTime = session.LoginTime;
+                DateTime refreshTime = session.LastDataReceivedTime;
+                byte[] ReceiveBuffer = session.ReceiveBuffer;
+                byte[] dataByteList = new byte[receivedSize];
+                for (int i = 0; i < receivedSize; i++)
                 {
-                    receivedSize = Int32.Parse(ReceiveBuffer[i].ToString()) * 2;
-                }
-            }
-            string gprsid = string.Empty;
-            string messageStr = System.Text.Encoding.ASCII.GetString(dataByteList);
-            InvokeMessage(messageStr, "原始数据");
-            string data1 = string.Empty;
-            if (messageStr.Contains("\u0001") && messageStr.Contains("\u0002") && messageStr.Contains("\u0003"))
-            {
-                string[] messageList = Regex.Split(messageStr, "\u0001", RegexOptions.IgnoreCase);
-                if (messageList == null || messageList.Length <= 1) { return; }
-                data1 = messageList[1];
-                gprsid = data1.Substring(2, 10);
-                foreach (TransparentHelper transparent in m_listTransparents)
-                {
-                    if (transparent.stationId == gprsid)
+                    dataByteList[i] = ReceiveBuffer[i];
+                    if (i == 2048)
                     {
-                        transparent.ip = ip;
-                        transparent.sessionId = sessionId.ToString();
-                        break;
+                        receivedSize = Int32.Parse(ReceiveBuffer[i].ToString()) * 2;
                     }
                 }
-
-
-            }
-            //if(messageStr.Length > 5)
-            string typ = data1.Substring(16, 2);
-            //InvokeMessage("  gprs号码:  " + gprsid + String.Format("  {0,-10}   ", typ) + messageStr, "接收");
-
-            //byte转string，如果是ASCII方式 则以此种方式传输
-            //string str = System.Text.Encoding.Default.GetString(dataByteList);
-            // TODO
-            //数据处理部分 后续可能需要更改  透明传输可能需要站点ID和数据协议的匹配
-            CRouter router = new CRouter();
-            router.dutid = sessionId.ToString();
-            router.sessionid = sessionId.ToString();
-            router.rawData = dataByteList;
-            router.dataLength = receivedSize;
-            resMap = channel2Data.commonHandle(router, "transparent");
-
-            
-            #region 接收回执
-            if(resMap["RET"] != null)
-            {
-                List<Dictionary<string, string>> retList = (List<Dictionary<string,string>>) resMap["RET"];
-                if(retList != null && retList.Count >= 1)
+                string gprsid = string.Empty;
+                string messageStr = System.Text.Encoding.ASCII.GetString(dataByteList);
+                //InvokeMessage(messageStr, "原始数据");
+                string data1 = string.Empty;
+                if (messageStr.Contains("\u0001") && messageStr.Contains("\u0002") && messageStr.Contains("\u0003"))
                 {
-                    foreach(Dictionary<string,string> ret in retList)
+                    string[] messageList = Regex.Split(messageStr, "\u0001", RegexOptions.IgnoreCase);
+                    if (messageList == null || messageList.Length <= 1) { return; }
+                    data1 = messageList[1];
+                    gprsid = data1.Substring(2, 10);
+                    foreach (TransparentHelper transparent in m_listTransparents)
                     {
-                        foreach (var item in ret)
+                        if (transparent.stationId == gprsid)
                         {
-                            //根据Stationid获取sessionid 
-                            //TODO
-                            string sessionid = item.Key.ToString();
-                            string returnMessage = item.Value;
-                            SendData(uint.Parse(sessionid), returnMessage);
-                        } 
+                            transparent.ip = ip;
+                            transparent.sessionId = sessionId.ToString();
+                            break;
+                        }
                     }
-                  }
-            }
-            #endregion
-            #region 报文日志书写
-            if (resMap["SORMEA"] != null)
-            {
-                List<SendOrRecvMsgEventArgs> sendOrRecvMsgEventArgsList = (List<SendOrRecvMsgEventArgs>)resMap["SORMEA"];
-                if (sendOrRecvMsgEventArgsList != null && sendOrRecvMsgEventArgsList.Count >= 1)
-                {
-                    foreach (SendOrRecvMsgEventArgs sendOrRecvMsgEventArgs in sendOrRecvMsgEventArgsList)
-                    {
-                        InvokeMessage(sendOrRecvMsgEventArgs.Msg, sendOrRecvMsgEventArgs.Description);
-                    }
+
 
                 }
-            }
-            #endregion
-            #region 上行数据
-            if (resMap["UEA"] != null)
-            {
-                List<UpEventArgs> upEventArgsList = (List<UpEventArgs>)resMap["UEA"];
-                if(upEventArgsList!=null && upEventArgsList.Count >= 1)
-                {
-                    foreach(UpEventArgs upEventArgs in upEventArgsList)
-                    {
-                        upEventArgs.Value.ChannelType = EChannelType.TCP;
-                        upEventArgs.Value.ListenPort = TcpSocketPort.ToString();
+                //if(messageStr.Length > 5)
+                string typ = data1.Substring(16, 2);
+                CRouter router = new CRouter();
+                router.dutid = sessionId.ToString();
+                router.sessionid = sessionId.ToString();
+                router.rawData = dataByteList;
+                router.dataLength = receivedSize;
+                resMap = channel2Data.commonHandle(router, "transparent");
 
-                        //返回报文数据到主程序
-                        if (this.UpDataReceived != null)
-                            if(upEventArgs.Value.ReportType==EMessageType.EAdditional || upEventArgs.Value.ReportType == EMessageType.EHour ||
-                                upEventArgs.Value.ReportType == EMessageType.ETimed || upEventArgs.Value.ReportType == EMessageType.EUinform)
+
+                #region 接收回执
+                if (resMap["RET"] != null)
+                {
+                    List<Dictionary<string, string>> retList = (List<Dictionary<string, string>>)resMap["RET"];
+                    if (retList != null && retList.Count >= 1)
+                    {
+                        foreach (Dictionary<string, string> ret in retList)
+                        {
+                            foreach (var item in ret)
                             {
-                                this.UpDataReceived.Invoke(null, upEventArgs);
-                            }else if(upEventArgs.Value.ReportType == EMessageType.EMannual || upEventArgs.Value.ReportType== EMessageType.Manual)
-                            {
+                                //根据Stationid获取sessionid 
                                 //TODO
-                                //this.DownDataReceived(null, upEventArgs);
-                                //返回到下行报文
-                            }else if(upEventArgs.Value.ReportType == EMessageType.Batch)
-                            {
-                                //TODO
-                                //批量传输报文
+                                string sessionid = item.Key.ToString();
+                                string returnMessage = item.Value;
+                                SendData(uint.Parse(sessionid), returnMessage);
                             }
-                    }
-                }
-            }
-            #endregion
-            #region 下行报文
-            if (resMap["DEA"] != null)
-            {
-                List<DownEventArgs> downEventArgsList = (List<DownEventArgs>)resMap["DEA"];
-                if (downEventArgsList != null && downEventArgsList.Count >= 1)
-                {
-                    foreach (DownEventArgs downEventArgs in downEventArgsList)
-                    {
-                        downEventArgs.rpValue.ChannelType = EChannelType.TCP;
-                        downEventArgs.rpValue.ListenPort = TcpSocketPort.ToString();
-                        if (this.DownDataReceived != null)
-                        {
-                            this.DownDataReceived(null, downEventArgs);
                         }
                     }
                 }
+                #endregion
+                #region 报文日志书写
+                if (resMap["SORMEA"] != null)
+                {
+                    List<SendOrRecvMsgEventArgs> sendOrRecvMsgEventArgsList = (List<SendOrRecvMsgEventArgs>)resMap["SORMEA"];
+                    if (sendOrRecvMsgEventArgsList != null && sendOrRecvMsgEventArgsList.Count >= 1)
+                    {
+                        foreach (SendOrRecvMsgEventArgs sendOrRecvMsgEventArgs in sendOrRecvMsgEventArgsList)
+                        {
+                            InvokeMessage(sendOrRecvMsgEventArgs.Msg, sendOrRecvMsgEventArgs.Description);
+                        }
+
+                    }
+                }
+                #endregion
+                #region 上行数据
+                if (resMap["UEA"] != null)
+                {
+                    List<UpEventArgs> upEventArgsList = (List<UpEventArgs>)resMap["UEA"];
+                    if (upEventArgsList != null && upEventArgsList.Count >= 1)
+                    {
+                        foreach (UpEventArgs upEventArgs in upEventArgsList)
+                        {
+                            upEventArgs.Value.ChannelType = EChannelType.TCP;
+                            upEventArgs.Value.ListenPort = TcpSocketPort.ToString();
+
+                            //返回报文数据到主程序
+                            if (this.UpDataReceived != null)
+                                if (upEventArgs.Value.ReportType == EMessageType.EAdditional || upEventArgs.Value.ReportType == EMessageType.EHour ||
+                                    upEventArgs.Value.ReportType == EMessageType.ETimed || upEventArgs.Value.ReportType == EMessageType.EUinform)
+                                {
+                                    this.UpDataReceived.Invoke(null, upEventArgs);
+                                }
+                                else if (upEventArgs.Value.ReportType == EMessageType.EMannual || upEventArgs.Value.ReportType == EMessageType.Manual)
+                                {
+                                    //TODO
+                                    //this.DownDataReceived(null, upEventArgs);
+                                    //返回到下行报文
+                                }
+                                else if (upEventArgs.Value.ReportType == EMessageType.Batch)
+                                {
+                                    //TODO
+                                    //批量传输报文
+                                }
+                        }
+                    }
+                }
+                #endregion
+                #region 下行报文
+                if (resMap["DEA"] != null)
+                {
+                    List<DownEventArgs> downEventArgsList = (List<DownEventArgs>)resMap["DEA"];
+                    if (downEventArgsList != null && downEventArgsList.Count >= 1)
+                    {
+                        foreach (DownEventArgs downEventArgs in downEventArgsList)
+                        {
+                            downEventArgs.rpValue.ChannelType = EChannelType.TCP;
+                            downEventArgs.rpValue.ListenPort = TcpSocketPort.ToString();
+                            if (this.DownDataReceived != null)
+                            {
+                                this.DownDataReceived(null, downEventArgs);
+                            }
+                        }
+                    }
+                }
+                InvokeMessage("ResolveBuffer end", "TCP");
+                #endregion
             }
+            catch(Exception e9)
+            {
+                InvokeMessage("ResolveBuffer error", "TCP");
+            }
+            //string data = string.Empty;
+            //int sessionId = session.ID;
+            //string ip = session.IP;
+            //DateTime loginTime = session.LoginTime;
+            //DateTime refreshTime = session.LastDataReceivedTime;
+            //byte[] ReceiveBuffer = session.ReceiveBuffer;
+            //byte[] dataByteList = new byte[receivedSize];
+            //for (int i = 0; i < receivedSize; i++)
+            //{
+            //    dataByteList[i] = ReceiveBuffer[i];
+            //    if (i == 2048)
+            //    {
+            //        receivedSize = Int32.Parse(ReceiveBuffer[i].ToString()) * 2;
+            //    }
+            //}
+            //string gprsid = string.Empty;
+            //string messageStr = System.Text.Encoding.ASCII.GetString(dataByteList);
+            ////InvokeMessage(messageStr, "原始数据");
+            //string data1 = string.Empty;
+            //if (messageStr.Contains("\u0001") && messageStr.Contains("\u0002") && messageStr.Contains("\u0003"))
+            //{
+            //    string[] messageList = Regex.Split(messageStr, "\u0001", RegexOptions.IgnoreCase);
+            //    if (messageList == null || messageList.Length <= 1) { return; }
+            //    data1 = messageList[1];
+            //    gprsid = data1.Substring(2, 10);
+            //    foreach (TransparentHelper transparent in m_listTransparents)
+            //    {
+            //        if (transparent.stationId == gprsid)
+            //        {
+            //            transparent.ip = ip;
+            //            transparent.sessionId = sessionId.ToString();
+            //            break;
+            //        }
+            //    }
 
-            #endregion
 
+            //}
+            ////if(messageStr.Length > 5)
+            //string typ = data1.Substring(16, 2);
+            //CRouter router = new CRouter();
+            //router.dutid = sessionId.ToString();
+            //router.sessionid = sessionId.ToString();
+            //router.rawData = dataByteList;
+            //router.dataLength = receivedSize;
+            //resMap = channel2Data.commonHandle(router, "transparent");
+
+            
+            //#region 接收回执
+            //if(resMap["RET"] != null)
+            //{
+            //    List<Dictionary<string, string>> retList = (List<Dictionary<string,string>>) resMap["RET"];
+            //    if(retList != null && retList.Count >= 1)
+            //    {
+            //        foreach(Dictionary<string,string> ret in retList)
+            //        {
+            //            foreach (var item in ret)
+            //            {
+            //                //根据Stationid获取sessionid 
+            //                //TODO
+            //                string sessionid = item.Key.ToString();
+            //                string returnMessage = item.Value;
+            //                SendData(uint.Parse(sessionid), returnMessage);
+            //            } 
+            //        }
+            //      }
+            //}
+            //#endregion
+            //#region 报文日志书写
+            //if (resMap["SORMEA"] != null)
+            //{
+            //    List<SendOrRecvMsgEventArgs> sendOrRecvMsgEventArgsList = (List<SendOrRecvMsgEventArgs>)resMap["SORMEA"];
+            //    if (sendOrRecvMsgEventArgsList != null && sendOrRecvMsgEventArgsList.Count >= 1)
+            //    {
+            //        foreach (SendOrRecvMsgEventArgs sendOrRecvMsgEventArgs in sendOrRecvMsgEventArgsList)
+            //        {
+            //            InvokeMessage(sendOrRecvMsgEventArgs.Msg, sendOrRecvMsgEventArgs.Description);
+            //        }
+
+            //    }
+            //}
+            //#endregion
+            //#region 上行数据
+            //if (resMap["UEA"] != null)
+            //{
+            //    List<UpEventArgs> upEventArgsList = (List<UpEventArgs>)resMap["UEA"];
+            //    if(upEventArgsList!=null && upEventArgsList.Count >= 1)
+            //    {
+            //        foreach(UpEventArgs upEventArgs in upEventArgsList)
+            //        {
+            //            upEventArgs.Value.ChannelType = EChannelType.TCP;
+            //            upEventArgs.Value.ListenPort = TcpSocketPort.ToString();
+
+            //            //返回报文数据到主程序
+            //            if (this.UpDataReceived != null)
+            //                if(upEventArgs.Value.ReportType==EMessageType.EAdditional || upEventArgs.Value.ReportType == EMessageType.EHour ||
+            //                    upEventArgs.Value.ReportType == EMessageType.ETimed || upEventArgs.Value.ReportType == EMessageType.EUinform)
+            //                {
+            //                    this.UpDataReceived.Invoke(null, upEventArgs);
+            //                }else if(upEventArgs.Value.ReportType == EMessageType.EMannual || upEventArgs.Value.ReportType== EMessageType.Manual)
+            //                {
+            //                    //TODO
+            //                    //this.DownDataReceived(null, upEventArgs);
+            //                    //返回到下行报文
+            //                }else if(upEventArgs.Value.ReportType == EMessageType.Batch)
+            //                {
+            //                    //TODO
+            //                    //批量传输报文
+            //                }
+            //        }
+            //    }
+            //}
+            //#endregion
+            //#region 下行报文
+            //if (resMap["DEA"] != null)
+            //{
+            //    List<DownEventArgs> downEventArgsList = (List<DownEventArgs>)resMap["DEA"];
+            //    if (downEventArgsList != null && downEventArgsList.Count >= 1)
+            //    {
+            //        foreach (DownEventArgs downEventArgs in downEventArgsList)
+            //        {
+            //            downEventArgs.rpValue.ChannelType = EChannelType.TCP;
+            //            downEventArgs.rpValue.ListenPort = TcpSocketPort.ToString();
+            //            if (this.DownDataReceived != null)
+            //            {
+            //                this.DownDataReceived(null, downEventArgs);
+            //            }
+            //        }
+            //    }
+            //}
+
+            //#endregion
+
+            
         }
 
         /// <summary>
@@ -1240,6 +1399,7 @@ namespace Protocol.Channel.Transparen
         /// </summary>
         private void CheckClientState(object state)
         {
+            InvokeMessage("CheckClientState start", "TCP");
             while (!_stopReceiver)
             {
                 DateTime thisTime = DateTime.Now;
@@ -1320,6 +1480,7 @@ namespace Protocol.Channel.Transparen
 
                 sessionTable2.Clear();
             }  // end while
+            InvokeMessage("CheckClientState end", "TCP");
         }
         /// <summary>
         /// 分析一个数据包
@@ -1584,6 +1745,7 @@ namespace Protocol.Channel.Transparen
                             //string a = transparent.stationId;
                         }
                     }
+                    dtu.stationid = session.ID.ToString();
                     dtu.m_dynip = System.Text.Encoding.Default.GetBytes(session.IP);
                     dtu.m_conn_time = (uint)ConvertDateTimeInt(session.LoginTime);
                     dtu.m_refresh_time = (uint)ConvertDateTimeInt(session.LastDataReceivedTime);

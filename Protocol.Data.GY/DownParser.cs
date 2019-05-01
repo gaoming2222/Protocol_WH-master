@@ -289,7 +289,7 @@ namespace Protocol.Data.GY
             }
             sb.Insert(19, String.Format("{0:D1}", 8));//  添加报文标识
             sb.Insert(20, String.Format("{0:X3}", length));//  添加报文长度
-            sb.Append("\u0003");//  添加结束符
+            sb.Append("\u0005");//  添加结束符
             string dataMsg = sb.ToString();
             string crcMsg = CRC.ToCRC16(dataMsg, false);
             string resut = dataMsg + crcMsg;
@@ -304,7 +304,72 @@ namespace Protocol.Data.GY
 
         public string BuildQuery_Flash(string sid, EStationType stationType, ETrans trans, DateTime beginTime, DateTime endTime, EChannelType ctype)
         {
-            throw new NotImplementedException();
+            StringBuilder sb = new StringBuilder();
+            sb.Append("\u0001");//  添加首字符
+            sb.Append(String.Format("{0:D10}", Int32.Parse(sid.Trim())));//  添加遥测站地址 
+            sb.Append(String.Format("{0:D2}", "00"));//  添加中心站地址     
+            sb.Append(String.Format("{0:D4}", "1234"));//  添加密码
+            sb.Append("\u0002");//  添加单包起始和结束符
+            sb.Append("0000");//  添加下行流水号  
+            sb.Append(timeToString());// 添加发报时间
+            int length = 16;//  指令的长度
+            //截取时间段的str
+            string year = beginTime.Year.ToString().Substring(2, 2);
+            string month = beginTime.Month.ToString();
+            if(month.Length < 2)
+            {
+                month = "0" + month;
+            }
+            string day = beginTime.Day.ToString();
+            if(day.Length < 2)
+            {
+                day = "0" + day;
+            }
+            string hour = beginTime.Hour.ToString();
+            if(hour.Length < 2)
+            {
+                hour = "0" + hour;
+            }
+            string strtMsg = year + month + day + hour;
+
+            year = endTime.Year.ToString().Substring(2, 2);
+            month = endTime.Month.ToString();
+            if (month.Length < 2)
+            {
+                month = "0" + month;
+            }
+            day = endTime.Day.ToString();
+            if (day.Length < 2)
+            {
+                day = "0" + day;
+            }
+            hour = endTime.Hour.ToString();
+            if (hour.Length < 2)
+            {
+                hour = "0" + hour;
+            }
+            string endMsg = year + month + day + hour;
+
+            string msg = strtMsg + endMsg;
+            //条件判定 暂时不需要
+            if (true)
+            {
+                sb.Insert(17, "38");//  添加功能码（查询遥测站时段数据）
+                sb.Append(msg);
+                sb.Append(CSpecialChars.BALNK_CHAR);
+
+                sb.Append("DRN05");
+                sb.Append(CSpecialChars.BALNK_CHAR);
+                sb.Append("DRP");
+                length += 26;
+            }
+            sb.Insert(19, String.Format("{0:D1}", 8));//  添加报文标识
+            sb.Insert(20, String.Format("{0:X3}", length));//  添加报文长度
+            sb.Append("\u0005");//  添加结束符
+            string dataMsg = sb.ToString();
+            string crcMsg = CRC.ToCRC16(dataMsg, false);
+            string resut = dataMsg + crcMsg;
+            return resut;
         }
 
         public string BuildQuery_SD(string sid, DateTime beginTime, EChannelType ctype)

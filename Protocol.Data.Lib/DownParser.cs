@@ -69,6 +69,11 @@ namespace Protocol.Data.Lib
             throw new Exception("信道协议未编写！");
         }
 
+        public string BuildQuery_Flash(string sid, EStationType stationType, ETrans trans, DateTime beginTime, DateTime endTime, EChannelType ctype)
+        {
+            throw new NotImplementedException();
+        }
+
         public string BuildSet(string sid, IList<EDownParamGY> cmds, CDownConfGY down, EChannelType ctype)
         {
             throw new NotImplementedException();
