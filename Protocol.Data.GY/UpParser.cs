@@ -560,14 +560,26 @@ namespace Protocol.Data.GY
                         string[] dataArr = Regex.Split(data, "TT", RegexOptions.IgnoreCase);
                         for (int i = 0; i < dataArr.Length; i++)
                         {
+                            
                             string oneGram = dataArr[i].Trim();
+                            //TODO
+                            
                             List<decimal> rainList = new List<decimal>();
                             List<decimal> waterList = new List<decimal>();
                             if (oneGram.Length < 10)
                             {
                                 continue;
                             }
-
+                            string timeStr = oneGram.Substring(0, 10);
+                            DateTime realTime = new DateTime(
+                                        year: int.Parse("20" + timeStr.Substring(0, 2)),
+                                        month: int.Parse(timeStr.Substring(2, 2)),
+                                        day: int.Parse(timeStr.Substring(4, 2)),
+                                        hour: int.Parse(timeStr.Substring(6, 2)),
+                                        minute: int.Parse(timeStr.Substring(8, 2)),
+                                        second: 0
+                                        );
+                            dataTime = realTime;
 
                             //观测时间引导符
 

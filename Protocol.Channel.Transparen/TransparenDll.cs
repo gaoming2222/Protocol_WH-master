@@ -310,9 +310,12 @@ namespace Protocol.Channel.Transparen
                         if (_sessionTable != null && _sessionTable.Count > 0)
                         {
                             // 可能引起 AcceptClientConnect 的 Poll 结束
-                            _receiverSocket.Shutdown(SocketShutdown.Receive);
+                            _receiverSocket.Shutdown(SocketShutdown.Both);
                         }
+                        
                         _receiverSocket.Close();
+                        _receiverSocket.Dispose();
+                        relievePort(TcpSocketPort);
                     }
                     catch(Exception e)
                     {
@@ -332,8 +335,6 @@ namespace Protocol.Channel.Transparen
             }
             
             isStart = false;
-            CloseAllSession();
-            relievePort(TcpSocketPort);
             InvokeMessage("关闭接收器end", "TCP");
             return true;
         }
@@ -386,10 +387,10 @@ namespace Protocol.Channel.Transparen
                 }
 
                 // 检查客户会话状态, 长时间未通信则清除该对象
-                if (!ThreadPool.QueueUserWorkItem(CheckClientState))
-                {
-                    return false;
-                }
+                //if (!ThreadPool.QueueUserWorkItem(CheckClientState))
+                //{
+                //    return false;
+                //}
                 isStart = true;
                 TcpSocketPort = port;
                 _stopConnectRequest = false;  // 启动接收器，则自动允许连接
@@ -412,6 +413,10 @@ namespace Protocol.Channel.Transparen
         public void CloseAllSession()
         {
             InvokeMessage("关闭所有接收器start", "TCP");
+            if(_sessionTable == null)
+            {
+                return;
+            }
             lock (_sessionTable)
             {
                 foreach (TSession session in _sessionTable.Values)
@@ -962,7 +967,9 @@ namespace Protocol.Channel.Transparen
                 }
                 //TODO
                 // 该处可以适当暂停若干毫秒
+                Thread.Sleep(200);
             }
+            
             InvokeMessage("ListenClientRequest end", "TCP");
             // 该处可以适当暂停若干毫秒
         }
@@ -999,7 +1006,7 @@ namespace Protocol.Channel.Transparen
 
         private void EndReceiveData(IAsyncResult iar)  // iar 目标客户端 Session
         {
-            InvokeMessage("EndReceiveData start", "TCP");
+            //InvokeMessage("EndReceiveData start", "TCP");
             TSession session = (TSession)iar.AsyncState;
             lock (_sessionTable)
             {
@@ -1050,7 +1057,7 @@ namespace Protocol.Channel.Transparen
                     //session.State = TSessionState.NoReply;
                 }
             }
-            InvokeMessage("EndReceiveData end", "TCP");
+            //InvokeMessage("EndReceiveData end", "TCP");
         }
         private void ResolveBuffer_1(TSession session, int receivedSize)
         {
@@ -1252,7 +1259,7 @@ namespace Protocol.Channel.Transparen
                         }
                     }
                 }
-                InvokeMessage("ResolveBuffer end", "TCP");
+                //InvokeMessage("ResolveBuffer end", "TCP");
                 #endregion
             }
             catch(Exception e9)
