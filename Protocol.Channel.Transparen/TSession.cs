@@ -31,7 +31,7 @@ namespace Protocol.Channel.Transparen
         private int _id;                         // 会话 ID
         private Socket _clientSocket;            // 客户端 Socket
         private string _ip = string.Empty;       // 客户端 IP 地址
-
+        private string _port = string.Empty;       // 本地监听端口
         private TSessionState _state;             // 会话状态 
         private TDisconnectType _disconnectType;  // 客户端的退出类型
 
@@ -51,6 +51,11 @@ namespace Protocol.Channel.Transparen
         public string IP  // 会话客户端 IP
         {
             get { return _ip; }
+        }
+
+        public string Port  // 会话客户端 IP
+        {
+            get { return _port; }
         }
 
         public Socket ClientSocket  // 获得与客户端会话关联的Socket对象
@@ -108,8 +113,12 @@ namespace Protocol.Channel.Transparen
             this._clientSocket = _cliSocket;
             this._id = (int)this._clientSocket.Handle;
 
+            IPEndPoint lep = (IPEndPoint)_cliSocket.LocalEndPoint;
+            _port = lep.Port.ToString();
+
             IPEndPoint iep = (IPEndPoint)_cliSocket.RemoteEndPoint;
             _ip = iep.Address.ToString();
+            
 
             ReceiveBuffer = new byte[DefaultBufferSize];  // 数据接收缓冲区
             DatagramBuffer = null;  // 数据包存储区

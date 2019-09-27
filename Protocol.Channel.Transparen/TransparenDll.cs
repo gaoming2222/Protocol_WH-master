@@ -1126,8 +1126,9 @@ namespace Protocol.Channel.Transparen
         /// </summary>
         private void ResolveBuffer(TSession session, int receivedSize)
         {
-            try {
-                InvokeMessage("ResolveBuffer start", "TCP");
+            try
+            {
+                InvokeMessage("ResolveBuffer start", "TCP原始数据");
                 string data = string.Empty;
                 int sessionId = session.ID;
                 string ip = session.IP;
@@ -1144,8 +1145,19 @@ namespace Protocol.Channel.Transparen
                     }
                 }
                 string gprsid = string.Empty;
-                string messageStr = System.Text.Encoding.ASCII.GetString(dataByteList);
-                //InvokeMessage(messageStr, "原始数据");
+                string messageStr = string.Empty;
+                if (session.Port == "5009")
+                {
+                    StringBuilder ret = new StringBuilder();
+                    foreach (byte b in dataByteList)
+                    {
+                        //{0:X2} 大写
+                        ret.AppendFormat("{0:x2}", b);
+                    }
+                    messageStr = ret.ToString();
+                }
+                messageStr = System.Text.Encoding.ASCII.GetString(dataByteList);
+                InvokeMessage(messageStr, "原始数据");
                 string data1 = string.Empty;
                 if (messageStr.Contains("\u0001") && messageStr.Contains("\u0002") && messageStr.Contains("\u0003"))
                 {
@@ -1261,8 +1273,9 @@ namespace Protocol.Channel.Transparen
                 }
                 //InvokeMessage("ResolveBuffer end", "TCP");
                 #endregion
+
             }
-            catch(Exception e9)
+            catch (Exception e9)
             {
                 InvokeMessage("ResolveBuffer error", "TCP");
             }
